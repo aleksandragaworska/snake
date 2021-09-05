@@ -6,8 +6,8 @@ pygame.init()
 width = 800
 length = 800
 
-x = length / 2
-y = width / 2
+x = width / 2
+y = length / 2
 
 step = 10
 
@@ -31,7 +31,7 @@ def get_new_apple():
     return apple_x, apple_y
 
 
-snake_body = []
+snake_body = [(x, y)]
 snake_len = 1
 
 current_direction = None
@@ -45,40 +45,24 @@ def draw_snake_body(snake_body):
         pygame.draw.circle(surface=window, color=color, radius=10, center=(x, y))
 
 
-def can_change_direction(current_direction, direction):
-    if not current_direction or not direction or (current_direction == direction):
-        return True, True
+def get_real_direction_and_changed(current_direction, direction, x_changed, y_changed):
     if current_direction == 'left' and direction == 'right':
-        return False, True
+        return -step, 0, current_direction
     if current_direction == 'right' and direction == 'left':
-        return False, True
+        return step, 0, current_direction
     if current_direction == 'up' and direction == 'down':
-        return True, False
+        return 0, -step, current_direction
     if current_direction == 'down' and direction == 'up':
-        return True, False
-    return True, True
+        return 0, step, current_direction
+    return x_changed, y_changed, direction
 
 
-def get_changes_snake_head_position(x_old, y_old, current_direction, x_changed, y_changed, direction):
-    if not current_direction:
-        current_direction = direction
-    can_change_x, can_change_y = can_change_direction(current_direction, direction)
-    if can_change_x and not can_change_y:
-        return x_old + x_changed, y_old, direction
-    if not can_change_x and can_change_y:
-        return x_old, y_old + y_changed, direction
-    if not can_change_x and not can_change_y:
-        return x_old, y_old, current_direction
-    if direction == 'left' and x_old <= step:
-        return x_old, y_old + y_changed, direction
-    if direction == 'right' and x_old >= width - step:
-        return x_old, y_old + y_changed, direction
-    if direction == 'up' and y_old <= step:
-        return x_old + x_changed, y_old, direction
-    if direction == 'down' and y_old >= width - step:
-        return x_old + x_changed, y_old, direction
-
-    return x_old + x_changed, y_old + y_changed, direction
+def get_changes_snake_head_position(x_old, y_old, x_changed, y_changed):
+    if x_old + x_changed < step or x_old + x_changed > width - step:
+        return x_old, y_old + y_changed
+    if y_old + y_changed < step or y_old + y_changed > length - step:
+        return x_old + x_changed, y_old
+    return x_old + x_changed, y_old + y_changed
 
 
 while run:
@@ -107,9 +91,16 @@ while run:
         direction = 'down'
     window.fill((0, 0, 0))
 
-    x, y, current_direction = get_changes_snake_head_position(x, y, current_direction, x_changed, y_changed, direction)
+    if current_direction is None:
+        current_direction = direction
 
-    if len(snake_body) == 0 or (x, y) != snake_body[-1]:
+    x_changed, y_changed, direction = get_real_direction_and_changed(current_direction, direction, x_changed, y_changed)
+
+    x, y = get_changes_snake_head_position(x, y, x_changed, y_changed)
+
+    current_direction = direction
+
+    if (x, y) != snake_body[-1]:
         snake_body.append((x, y))
 
     for n in range(1, snake_len + 1):
@@ -118,7 +109,6 @@ while run:
     if need_new_apple:
         need_new_apple = False
         apple_x, apple_y = get_new_apple()
-    pygame.draw.circle(surface=window, color=color, radius=10, center=(x, y))
     if apple_x == x and apple_y == y:
         need_new_apple = True
         snake_len += 1
