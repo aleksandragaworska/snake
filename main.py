@@ -11,6 +11,7 @@ y = length / 2
 
 step = 10
 
+
 window = pygame.display.set_mode(size=(width, length))
 
 run = True
@@ -18,6 +19,7 @@ run = True
 deepskyblue = (0, 191, 255)
 springgreen = (0, 255, 127)
 red = (255, 0, 0)
+blue = (50, 153, 213)
 color = deepskyblue
 
 need_new_apple = True
@@ -31,8 +33,12 @@ def get_new_apple():
     return apple_x, apple_y
 
 
+start_snake_lenght = 25
 snake_body = [(x, y)]
-snake_len = 1
+for i in range(start_snake_lenght - 1, 0, -1):
+    snake_body.append([x, y + step * i])
+
+snake_len = start_snake_lenght
 
 current_direction = None
 direction = None
@@ -65,11 +71,25 @@ def get_changes_snake_head_position(x_old, y_old, x_changed, y_changed):
     return x_old + x_changed, y_old + y_changed
 
 
+score_font = pygame.font.SysFont("comicsansms", int(width / 20))
+end_game = False
+
 while run:
     pygame.time.delay(50)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
+
+    while end_game:
+        window.fill(blue)
+        value = score_font.render(f"Your Score: {snake_len - start_snake_lenght}", True, springgreen)
+        window.blit(value, [0, 0])
+        pygame.display.update()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                end_game = False
+                run = False
 
     keys = pygame.key.get_pressed()
 
@@ -103,6 +123,11 @@ while run:
     if (x, y) != snake_body[-1]:
         snake_body.append((x, y))
 
+    snake_head = snake_body[-1]
+
+    if snake_len > 1 and snake_head in snake_body[-snake_len:-1]:
+        end_game = True
+
     for n in range(1, snake_len + 1):
         draw_snake_body(snake_body[-n:])
 
@@ -114,5 +139,7 @@ while run:
         snake_len += 1
         print('Yummy!')
     pygame.draw.circle(surface=window, color=red, radius=10, center=(apple_x, apple_y))
+    score_text = score_font.render(f"Your Score: {snake_len - start_snake_lenght}", True, springgreen)
+    window.blit(score_text, [0, 0])
     pygame.display.update()
     clock.tick(30)
