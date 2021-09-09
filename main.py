@@ -34,9 +34,12 @@ def get_new_apple():
 
 
 start_snake_lenght = 25
-snake_body = [(x, y)]
+snake_body = []
+
 for i in range(start_snake_lenght - 1, 0, -1):
-    snake_body.append([x, y + step * i])
+    snake_body.append((x, y + step * i))
+
+snake_body.append((x, y))
 
 snake_len = start_snake_lenght
 
@@ -48,7 +51,7 @@ y_changed = 0
 
 def draw_snake_body(snake_body):
     for x, y in snake_body:
-        pygame.draw.circle(surface=window, color=color, radius=10, center=(x, y))
+        pygame.draw.circle(surface=window, color=color, radius=step * 0.8, center=(x, y))
 
 
 def get_real_direction_and_changed(current_direction, direction, x_changed, y_changed):
@@ -79,10 +82,12 @@ score_font = pygame.font.SysFont("comicsansms", int(width / 20))
 end_game = False
 
 while run:
-    pygame.time.delay(50)
+    pygame.time.delay(80)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
+
+    window.fill((0, 0, 0))
 
     while end_game:
         window.fill(blue)
@@ -113,7 +118,11 @@ while run:
         x_changed = 0
         y_changed = step
         direction = 'down'
-    window.fill((0, 0, 0))
+
+    if not direction:
+        x_changed = 0
+        y_changed = -step
+        direction = 'up'
 
     if current_direction is None:
         current_direction = direction
@@ -141,7 +150,7 @@ while run:
     if apple_x == x and apple_y == y:
         need_new_apple = True
         snake_len += 1
-    pygame.draw.circle(surface=window, color=red, radius=10, center=(apple_x, apple_y))
+    pygame.draw.circle(surface=window, color=red, radius=step, center=(apple_x, apple_y))
     score_text = score_font.render(f"Your Score: {snake_len - start_snake_lenght}", True, springgreen)
     window.blit(score_text, [0, 0])
     pygame.display.update()
