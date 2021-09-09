@@ -64,10 +64,14 @@ def get_real_direction_and_changed(current_direction, direction, x_changed, y_ch
 
 
 def get_changes_snake_head_position(x_old, y_old, x_changed, y_changed):
-    if x_old + x_changed < step or x_old + x_changed > width - step:
-        return x_old, y_old + y_changed
-    if y_old + y_changed < step or y_old + y_changed > length - step:
-        return x_old + x_changed, y_old
+    if x_old + x_changed < step:
+        return width - step, y_old + y_changed
+    if x_old + x_changed > width - step:
+        return step, y_old + y_changed
+    if y_old + y_changed < step:
+        return x_old + x_changed, length - step
+    if y_old + y_changed > length - step:
+        return x_old + x_changed, step
     return x_old + x_changed, y_old + y_changed
 
 
@@ -137,7 +141,6 @@ while run:
     if apple_x == x and apple_y == y:
         need_new_apple = True
         snake_len += 1
-        print('Yummy!')
     pygame.draw.circle(surface=window, color=red, radius=10, center=(apple_x, apple_y))
     score_text = score_font.render(f"Your Score: {snake_len - start_snake_lenght}", True, springgreen)
     window.blit(score_text, [0, 0])
