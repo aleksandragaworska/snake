@@ -1,157 +1,193 @@
 import pygame
 from random import randrange
-
-pygame.init()
-
-width = 800
-length = 800
-
-x = width / 2
-y = length / 2
-
-step = 10
+from dataclasses import dataclass
+from typing import Tuple
 
 
-window = pygame.display.set_mode(size=(width, length))
-
-run = True
-
-deepskyblue = (0, 191, 255)
-springgreen = (0, 255, 127)
-red = (255, 0, 0)
-blue = (50, 153, 213)
-color = deepskyblue
-
-need_new_apple = True
-
-clock = pygame.time.Clock()
+@dataclass
+class Color:
+    deepskyblue: Tuple[int] = (0, 191, 255)
+    springgreen: Tuple[int] = (0, 255, 127)
+    red: Tuple[int] = (255, 0, 0)
+    white: Tuple[int] = (128, 128, 128)
+    blue: Tuple[int] = (50, 153, 213)
 
 
-def get_new_apple():
-    apple_x = round(randrange(step, width - step) / step) * step
-    apple_y = round(randrange(step, length - step) / step) * step
+@dataclass
+class Config:
+    run: bool = True
+    width: int = 800
+    length: int = 800
+    x: int = width / 2
+    y: int = length / 2
+    step: int = 20
+    need_new_apple: bool = True
+    end_game: bool = False
+    restart_game: bool = False
+    current_direction: str = 'up'
+    x_changed: int = 0
+    y_changed: int = -step
+    direction: str = 'up'
+    start_snake_lenght: int = 25
+    snake_len: int = start_snake_lenght
+    default_color: Color = Color.deepskyblue
+
+
+def get_new_apple(config):
+    apple_x = round(randrange(config.step, config.width - config.step) / config.step) * config.step
+    apple_y = round(randrange(config.step, config.length - config.step) / config.step) * config.step
     return apple_x, apple_y
 
 
-start_snake_lenght = 25
-snake_body = []
-
-for i in range(start_snake_lenght - 1, 0, -1):
-    snake_body.append((x, y + step * i))
-
-snake_body.append((x, y))
-
-snake_len = start_snake_lenght
-
-current_direction = None
-direction = None
-x_changed = 0
-y_changed = 0
+def get_start_snake(config):
+    snake_body = []
+    for i in range(config.start_snake_lenght - 1, 0, -1):
+        snake_body.append((config.x, config.y + config.step * i))
+    snake_body.append((config.x, config.y))
+    return snake_body
 
 
-def draw_snake_body(snake_body):
+def draw_grade(window, config, color):
+    block = config.step
+    for x in range(0, config.width, block):
+        for y in range(0, config.length, block):
+            rect = pygame.Rect(x, y, block, block)
+            pygame.draw.rect(window, color.white, rect, 1)
+
+
+def draw_snake_body(window, snake_body, config):
     for x, y in snake_body:
-        pygame.draw.circle(surface=window, color=color, radius=step * 0.8, center=(x, y))
+        point_list = [
+            (x + config.step / 4, y),
+            (x + 3 * config.step / 4, y),
+            (x + config.step, y + config.step / 4),
+            (x + config.step, y + 3 * config.step / 4),
+            (x + 3 * config.step / 4, y + config.step),
+            (x + config.step / 4, y + config.step),
+            (x, y + 3 * config.step / 4),
+            (x, y + config.step / 4)
+
+        ]
+        pygame.draw.polygon(window, config.default_color, point_list)
 
 
-def get_real_direction_and_changed(current_direction, direction, x_changed, y_changed):
-    if current_direction == 'left' and direction == 'right':
-        return -step, 0, current_direction
-    if current_direction == 'right' and direction == 'left':
-        return step, 0, current_direction
-    if current_direction == 'up' and direction == 'down':
-        return 0, -step, current_direction
-    if current_direction == 'down' and direction == 'up':
-        return 0, step, current_direction
-    return x_changed, y_changed, direction
+def get_direction_and_changed(config):
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT]:
+        config.x_changed = -config.step
+        config.y_changed = 0
+        config.direction = 'left'
+    elif keys[pygame.K_RIGHT]:
+        config.x_changed = config.step
+        config.y_changed = 0
+        config.direction = 'right'
+    elif keys[pygame.K_UP]:
+        config.x_changed = 0
+        config.y_changed = -config.step
+        config.direction = 'up'
+    elif keys[pygame.K_DOWN]:
+        config.x_changed = 0
+        config.y_changed = config.step
+        config.direction = 'down'
+    return config.x_changed, config.y_changed, config.direction
 
 
-def get_changes_snake_head_position(x_old, y_old, x_changed, y_changed):
-    if x_old + x_changed < step:
-        return width - step, y_old + y_changed
-    if x_old + x_changed > width - step:
-        return step, y_old + y_changed
-    if y_old + y_changed < step:
-        return x_old + x_changed, length - step
-    if y_old + y_changed > length - step:
-        return x_old + x_changed, step
-    return x_old + x_changed, y_old + y_changed
+def get_real_direction_and_changed(config):
+    if config.current_direction == 'left' and config.direction == 'right':
+        return -config.step, 0, config.current_direction
+    if config.current_direction == 'right' and config.direction == 'left':
+        return config.step, 0, config.current_direction
+    if config.current_direction == 'up' and config.direction == 'down':
+        return 0, -config.step, config.current_direction
+    if config.current_direction == 'down' and config.direction == 'up':
+        return 0, config.step, config.current_direction
+    return config.x_changed, config.y_changed, config.direction
 
 
-score_font = pygame.font.SysFont("comicsansms", int(width / 20))
-end_game = False
+def get_changes_snake_head_position(config):
+    if config.x + config.x_changed < config.step:
+        return config.width - config.step, config.y + config.y_changed
+    if config.x + config.x_changed > config.width - config.step:
+        return config.step, config.y + config.y_changed
+    if config.y + config.y_changed < config.step:
+        return config.x + config.x_changed, config.length - config.step
+    if config.y + config.y_changed > config.length - config.step:
+        return config.x + config.x_changed, config.step
+    return config.x + config.x_changed, config.y + config.y_changed
 
-while run:
-    pygame.time.delay(80)
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            run = False
 
-    window.fill((0, 0, 0))
+def main():
+    clock = pygame.time.Clock()
+    color = Color()
+    config = Config()
 
-    while end_game:
-        window.fill(blue)
-        value = score_font.render(f"Your Score: {snake_len - start_snake_lenght}", True, springgreen)
-        window.blit(value, [0, 0])
-        pygame.display.update()
+    window = pygame.display.set_mode(size=(config.width, config.length))
 
+    game_over_font = pygame.font.SysFont("comicsansms", int(config.width / 10))
+    score_font = pygame.font.SysFont("comicsansms", int(config.width / 20))
+
+    snake_body = get_start_snake(config)
+
+    while config.run:
+        pygame.time.delay(80)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                end_game = False
-                run = False
+                config.run = False
 
-    keys = pygame.key.get_pressed()
+        window.fill((0, 0, 0))
+        draw_grade(window, config, color)
 
-    if keys[pygame.K_LEFT]:
-        x_changed = -step
-        y_changed = 0
-        direction = 'left'
-    elif keys[pygame.K_RIGHT]:
-        x_changed = step
-        y_changed = 0
-        direction = 'right'
-    elif keys[pygame.K_UP]:
-        x_changed = 0
-        y_changed = -step
-        direction = 'up'
-    elif keys[pygame.K_DOWN]:
-        x_changed = 0
-        y_changed = step
-        direction = 'down'
+        while config.end_game:
+            window.fill(color.blue)
+            game_over = game_over_font.render(f"GAME OVER", True, color.red)
+            final_score = score_font.render(f"Your Score: {config.snake_len - config.start_snake_lenght}", True, color.springgreen)
+            try_again = score_font.render("Try again! Press SPACE", True, color.springgreen)
+            window.blit(game_over, [config.width * 0.3, config.length * 0.35])
+            window.blit(final_score, [config.width * 0.4, config.length * 0.45])
+            window.blit(try_again, [config.width * 0.3, config.length * 0.50])
+            pygame.display.update()
 
-    if not direction:
-        x_changed = 0
-        y_changed = -step
-        direction = 'up'
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    config.end_game = False
+                    config.run = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        config = Config()
+                        snake_body = get_start_snake(config)
 
-    if current_direction is None:
-        current_direction = direction
+        config.x_changed, config.y_changed, config.direction = get_direction_and_changed(config)
 
-    x_changed, y_changed, direction = get_real_direction_and_changed(current_direction, direction, x_changed, y_changed)
+        config.x_changed, config.y_changed, config.direction = get_real_direction_and_changed(config)
 
-    x, y = get_changes_snake_head_position(x, y, x_changed, y_changed)
+        config.x, config.y = get_changes_snake_head_position(config)
 
-    current_direction = direction
+        config.current_direction = config.direction
 
-    if (x, y) != snake_body[-1]:
-        snake_body.append((x, y))
+        if (config.x, config.y) != snake_body[-1]:
+            snake_body.append((config.x, config.y))
 
-    snake_head = snake_body[-1]
+        snake_head = snake_body[-1]
 
-    if snake_len > 1 and snake_head in snake_body[-snake_len:-1]:
-        end_game = True
+        if config.snake_len > 1 and snake_head in snake_body[-config.snake_len:-1]:
+            config.end_game = True
 
-    for n in range(1, snake_len + 1):
-        draw_snake_body(snake_body[-n:])
+        for n in range(1, config.snake_len + 1):
+            draw_snake_body(window, snake_body[-n:], config)
 
-    if need_new_apple:
-        need_new_apple = False
-        apple_x, apple_y = get_new_apple()
-    if apple_x == x and apple_y == y:
-        need_new_apple = True
-        snake_len += 1
-    pygame.draw.circle(surface=window, color=red, radius=step, center=(apple_x, apple_y))
-    score_text = score_font.render(f"Your Score: {snake_len - start_snake_lenght}", True, springgreen)
-    window.blit(score_text, [0, 0])
-    pygame.display.update()
-    clock.tick(30)
+        if config.need_new_apple:
+            config.need_new_apple = False
+            apple_x, apple_y = get_new_apple(config)
+        if apple_x == config.x and apple_y == config.y:
+            config.need_new_apple = True
+            config.snake_len += 1
+        pygame.draw.circle(surface=window, color=color.red, radius=config.step / 2, center=(apple_x + config.step / 2, apple_y + config.step / 2))
+        score_text = score_font.render(f"Your Score: {config.snake_len - config.start_snake_lenght}", True, color.springgreen)
+        window.blit(score_text, [0, 0])
+        pygame.display.update()
+        clock.tick(30)
+
+
+if __name__ == '__main__':
+    pygame.init()
+    main()
